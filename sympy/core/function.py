@@ -98,7 +98,7 @@ class FunctionClass(WithAssumptions):
     def __contains__(self, obj):
         return (self == obj)
 
-class Application(Basic):
+class Application(Expr):
     """
     Base class for applied functions.
 
@@ -174,7 +174,7 @@ class Application(Basic):
         return super(Application, self).__contains__(obj)
 
 
-class Function(Application, Expr):
+class Function(Application):
     """
     Base class for applied numeric functions.
     Constructor of undefined function classes.

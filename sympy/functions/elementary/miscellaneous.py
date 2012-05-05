@@ -349,7 +349,7 @@ class MinMaxBase(LatticeOp):
             return True
         return False
 
-class Max(MinMaxBase, Application, Basic):
+class Max(MinMaxBase, Application):
     """
     Return, if possible, the maximum value of the list.
 
@@ -455,7 +455,7 @@ class Max(MinMaxBase, Application, Basic):
         return (x < y)
 
 
-class Min(MinMaxBase, Application, Basic):
+class Min(MinMaxBase, Application):
     """
     Return, if possible, the minimum value of the list.
 
