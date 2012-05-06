@@ -1,0 +1,14 @@
+These notebooks are saved with unevaluated output.
+
+They are guranteered to work only on ipython>=0.13 and only if the notebook was
+ran with the profile supplied in this folder.
+# TODO merge this profile and the sympy profile.
+
+The testrunner evaluates each notebook checking for exceptions. In order for
+the testrunner to run correctly you need to have installed the supplied profile
+under the name profile_nbserver_sympytest.
+
+
+The documentation makefile evaluates each notebook and creates a page in the
+documentation for each of them. You need to install the supplied profile as
+for the test runner. You also need to have nbconvert installed.
