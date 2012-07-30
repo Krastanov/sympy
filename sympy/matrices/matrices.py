@@ -3307,20 +3307,13 @@ class MatrixBase(object):
         del self._is_symmetric
         del self._eigenvects
 
-    def jordan_form(self, calc_transformation = True):
-        """
-        Return Jordan form J of current matrix.
+    def generalized_eigenvects(self):
+        """Return the chains of generalized eigenvectors.
 
-        If calc_transformation is specified as False, then transformation P such that
-
-              J = P^-1 * M * P
-
-        will not be calculated.
-
-        Notes
-        =====
-
-        Calculation of transformation P is not implemented yet.
+        The output format is a list of tuples containing
+            - eigenvalue
+            - algebraic multiplicity
+            - list of chains of generalized eigenvectors
 
         Examples
         ========
@@ -3333,37 +3326,95 @@ class MatrixBase(object):
         [ 2,  1, -2, -3]
         [-1,  1,  5,  5]
 
-        >>> (P, J) = m.jordan_form()
+        This matrix has only one eigenvalue so we unpack directly.
+
+        >>> ((e_val, alg_mul, chains), ) = m.generalized_eigenvects()
+        >>> e_val, alg_mul
+        (2, 4)
+
+        The first generalized eigenvectors in each chain are the actual
+        eigenvectors.
+
+        >>> chains[0][0] == m.eigenvects()[0][2][0]
+        True
+        >>> chains[1][0] == m.eigenvects()[0][2][1]
+        True
+
+        The first chain is:
+
+        >>> chains[0][0]
+        [ 3]
+        [-2]
+        [ 1]
+        [ 0]
+        >>> chains[0][1]
+        [1/3]
+        [1/3]
+        [  0]
+        [  0]
+
+        """
+        Id = eye(self.rows)
+        eigenvects = self.eigenvects()
+        g_eigenvects = []
+        for e_val, alg_mul, e_vecs in eigenvects:
+            chains = [[v] for v in e_vecs]
+            for chain in chains:
+                while True: # while next_vec is not None
+                    next_vec = (self - e_val*Id).particular_solution(chain[-1])
+                    if next_vec:
+                        chain.append(next_vec)
+                    else:
+                        break
+            g_eigenvects.append((e_val, alg_mul, chains))
+        return g_eigenvects
+
+    def jordan_form(self):
+        """
+        Return Jordan form J of the matrix.
+
+              J = P^-1 * M * P
+
+        Examples
+        ========
+
+        >>> from sympy import Matrix
+        >>> m = Matrix(4, 4, [6, 5, -2, -3, -3, -1, 3, 3, 2, 1, -2, -3, -1, 1, 5, 5])
+        >>> m
+        [ 6,  5, -2, -3]
+        [-3, -1,  3,  3]
+        [ 2,  1, -2, -3]
+        [-1,  1,  5,  5]
+
+        >>> P, J = m.jordan_form()
         >>> J
         [2, 1, 0, 0]
         [0, 2, 0, 0]
         [0, 0, 2, 1]
         [0, 0, 0, 2]
+        >>> P
+        [ 3, 1/3,  2, -1/3]
+        [-2, 1/3, -1,  2/3]
+        [ 1,   0,  0,    0]
+        [ 0,   0,  1,    0]
+        >>> P*J*P.inv() == m
+        True
 
         See Also
         ========
 
         jordan_cells
+        generalized_eigenvects
         """
-        (P, Jcells) = self.jordan_cells(calc_transformation)
+        (P, Jcells) = self.jordan_cells()
         J = diag(*Jcells)
         return (P, J)
 
-    def jordan_cells(self, calc_transformation = True):
+    def jordan_cells(self):
         """
-        Return a list of Jordan cells of current matrix.
-        This list shape Jordan matrix J.
-
-        If calc_transformation is specified as False, then transformation P such that
+        Return a list of Jordan cells of the matrix.
 
               J = P^-1 * M * P
-
-        will not be calculated.
-
-        Notes
-        =====
-
-        Calculation of transformation P is not implemented yet.
 
         Examples
         ========
@@ -3376,45 +3427,35 @@ class MatrixBase(object):
         [ 2,  1, -2, -3]
         [-1,  1,  5,  5]
 
-        >>> (P, Jcells) = m.jordan_cells()
+        >>> P, Jcells = m.jordan_cells()
         >>> Jcells[0]
         [2, 1]
         [0, 2]
         >>> Jcells[1]
         [2, 1]
         [0, 2]
+        >>> P
+        [ 3, 1/3,  2, -1/3]
+        [-2, 1/3, -1,  2/3]
+        [ 1,   0,  0,    0]
+        [ 0,   0,  1,    0]
 
         See Also
         ========
 
         jordan_form
+        generalized_eigenvects
         """
         if not self.is_square:
             raise NonSquareMatrixError()
-        _eigenvects = self.eigenvects()
-        Jcells = []
-        for eigenval, multiplicity, vects in _eigenvects:
-            geometrical = len(vects)
-            if geometrical == multiplicity:
-                Jcell = diag( *([eigenval] * multiplicity))
-                Jcells.append(Jcell)
-            else:
-                sizes = self._jordan_split(multiplicity, geometrical)
-                cells = []
-                for size in sizes:
-                    cell = jordan_cell(eigenval, size)
-                    cells.append(cell)
-                Jcells += cells
-        return (None, Jcells)
-
-    def _jordan_split(self, algebraical, geometrical):
-        """return a list of integers with sum equal to 'algebraical'
-        and length equal to 'geometrical'"""
-        n1 = algebraical // geometrical
-        res = [n1] * geometrical
-        res[len(res) - 1] += algebraical % geometrical
-        assert sum(res) == algebraical
-        return res
+        g_eigenvects = self.generalized_eigenvects()
+        jcells = [jordan_cell(e_val, len(chain))
+                    for e_val, mul, chains in g_eigenvects
+                    for chain in chains]
+        p = reduce(Matrix.row_join, [v for e_val, mul, chains in g_eigenvects
+                                       for chain in chains
+                                       for v in chain])
+        return p, jcells
 
     def particular_solution(self, b):
         """Returns the particular solution to ``A*x=b``.
